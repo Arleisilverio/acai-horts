@@ -24,41 +24,61 @@ import { supabase, isSupabaseConfigured, SUPABASE_URL } from '../lib/supabase';
 interface StoreContextType {
   storeSettings: StoreSettings;
   updateStoreSettings: (partial: Partial<StoreSettings>) => void;
+
   cupSizes: CupSize[];
   updateCupSize: (id: string, partial: Partial<CupSize>) => void;
   addCupSize: (size: CupSize) => void;
   deleteCupSize: (id: string) => void;
+
   baseOptions: BaseOption[];
   updateBaseOption: (id: string, partial: Partial<BaseOption>) => void;
   addBaseOption: (base: BaseOption) => void;
   deleteBaseOption: (id: string) => void;
+
   complements: Complement[];
   updateComplement: (id: string, partial: Partial<Complement>) => void;
   addComplement: (complement: Complement) => void;
   deleteComplement: (id: string) => void;
+
   combos: ComboItem[];
   updateCombo: (id: string, partial: Partial<ComboItem>) => void;
   addCombo: (combo: ComboItem) => void;
   deleteCombo: (id: string) => void;
+
   neighborhoods: Neighborhood[];
   updateNeighborhood: (id: string, partial: Partial<Neighborhood>) => void;
   addNeighborhood: (neighborhood: Neighborhood) => void;
   deleteNeighborhood: (id: string) => void;
+
   transactions: FinancialTransaction[];
   addTransaction: (tx: Omit<FinancialTransaction, 'id'>) => void;
   updateTransaction: (id: string, partial: Partial<FinancialTransaction>) => void;
   deleteTransaction: (id: string) => void;
+
   isEditMode: boolean;
   setIsEditMode: (val: boolean) => void;
+
   posMode: 'delivery' | 'balcao';
   setPosMode: (mode: 'delivery' | 'balcao') => void;
+
   isTotemMode: boolean;
   setIsTotemMode: (val: boolean) => void;
+
   orderMessages: OrderMessage[];
-  sendOrderMessage: (orderId: string, message: string, senderRole: 'lojista' | 'cliente', senderName: string) => Promise<void>;
+  totalOrderMessagesCount: number;
+  sendOrderMessage: (
+    orderId: string,
+    message: string,
+    senderRole: 'lojista' | 'cliente',
+    senderName: string
+  ) => Promise<void>;
   getOrderMessages: (orderId: string) => OrderMessage[];
+  getOrderMessagesCount: (orderId: string) => number;
+
   deductStockForOrder: (items: CustomAcaiItem[]) => void;
   resetAllStoreData: () => void;
+
+  // Supabase sync info
   isCloudSynced: boolean;
   supabaseUrl: string;
   setSupabaseCredentials: (url: string, anonKey: string) => void;
@@ -108,41 +128,63 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadFromStorage('acai_transactions_v2', INITIAL_TRANSACTIONS)
   );
 
+  // Sync to localStorage
   useEffect(() => {
-    try { localStorage.setItem('acai_store_settings_v2', JSON.stringify(storeSettings)); } catch {}
+    try {
+      localStorage.setItem('acai_store_settings_v2', JSON.stringify(storeSettings));
+    } catch {}
   }, [storeSettings]);
 
   useEffect(() => {
-    try { localStorage.setItem('acai_cup_sizes_v2', JSON.stringify(cupSizes)); } catch {}
+    try {
+      localStorage.setItem('acai_cup_sizes_v2', JSON.stringify(cupSizes));
+    } catch {}
   }, [cupSizes]);
 
   useEffect(() => {
-    try { localStorage.setItem('acai_base_options_v2', JSON.stringify(baseOptions)); } catch {}
+    try {
+      localStorage.setItem('acai_base_options_v2', JSON.stringify(baseOptions));
+    } catch {}
   }, [baseOptions]);
 
   useEffect(() => {
-    try { localStorage.setItem('acai_complements_v2', JSON.stringify(complements)); } catch {}
+    try {
+      localStorage.setItem('acai_complements_v2', JSON.stringify(complements));
+    } catch {}
   }, [complements]);
 
   useEffect(() => {
-    try { localStorage.setItem('acai_combos_v2', JSON.stringify(combos)); } catch {}
+    try {
+      localStorage.setItem('acai_combos_v2', JSON.stringify(combos));
+    } catch {}
   }, [combos]);
 
   useEffect(() => {
-    try { localStorage.setItem('acai_neighborhoods_v2', JSON.stringify(neighborhoods)); } catch {}
+    try {
+      localStorage.setItem('acai_neighborhoods_v2', JSON.stringify(neighborhoods));
+    } catch {}
   }, [neighborhoods]);
 
   useEffect(() => {
-    try { localStorage.setItem('acai_transactions_v2', JSON.stringify(transactions)); } catch {}
+    try {
+      localStorage.setItem('acai_transactions_v2', JSON.stringify(transactions));
+    } catch {}
   }, [transactions]);
 
+  // Load from Supabase on startup if configured
   useEffect(() => {
     if (!supabase) return;
 
     async function loadCloudData() {
       try {
-        const { data: remoteSettings } = await supabase!.from('acai_store_settings').select('*').single();
+        // Tentar tabela com prefixo acai_ ou padrão
+        const { data: remoteSettings } = await supabase!
+          .from('acai_store_settings')
+          .select('*')
+          .single();
+
         if (remoteSettings) {
+          // map snake_case to camelCase
           setStoreSettings((prev) => ({
             ...prev,
             storeName: remoteSettings.store_name || prev.storeName,
@@ -225,6 +267,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           pix_key: next.pixKey,
           monthly_goal: next.monthlyGoal,
         };
+
         supabase.from('acai_store_settings').upsert(payload).then();
       }
       return next;
@@ -240,7 +283,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           updated.stock = Math.max(0, partial.stock);
           if (updated.stock === 0) updated.available = false;
         }
-        if (supabase) supabase.from('cup_sizes').upsert(updated).then();
+        if (supabase) {
+          supabase.from('cup_sizes').upsert(updated).then();
+        }
         return updated;
       })
     );
@@ -248,12 +293,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addCupSize = (size: CupSize) => {
     setCupSizes((prev) => [...prev, size]);
-    if (supabase) supabase.from('cup_sizes').upsert(size).then();
+    if (supabase) {
+      supabase.from('cup_sizes').upsert(size).then();
+    }
   };
 
   const deleteCupSize = (id: string) => {
     setCupSizes((prev) => prev.filter((s) => s.id !== id));
-    if (supabase) supabase.from('cup_sizes').delete().eq('id', id).then();
+    if (supabase) {
+      supabase.from('cup_sizes').delete().eq('id', id).then();
+    }
   };
 
   const updateBaseOption = (id: string, partial: Partial<BaseOption>) => {
@@ -265,7 +314,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           updated.stock = Math.max(0, partial.stock);
           if (updated.stock === 0) updated.available = false;
         }
-        if (supabase) supabase.from('base_options').upsert(updated).then();
+        if (supabase) {
+          supabase.from('base_options').upsert(updated).then();
+        }
         return updated;
       })
     );
@@ -273,12 +324,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addBaseOption = (base: BaseOption) => {
     setBaseOptions((prev) => [...prev, base]);
-    if (supabase) supabase.from('base_options').upsert(base).then();
+    if (supabase) {
+      supabase.from('base_options').upsert(base).then();
+    }
   };
 
   const deleteBaseOption = (id: string) => {
     setBaseOptions((prev) => prev.filter((b) => b.id !== id));
-    if (supabase) supabase.from('base_options').delete().eq('id', id).then();
+    if (supabase) {
+      supabase.from('base_options').delete().eq('id', id).then();
+    }
   };
 
   const updateComplement = (id: string, partial: Partial<Complement>) => {
@@ -291,16 +346,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (updated.stock === 0) updated.available = false;
         }
         if (supabase) {
-          supabase.from('complements').upsert({
-            id: updated.id,
-            name: updated.name,
-            category: updated.category,
-            price: updated.price,
-            cost_price: updated.costPrice,
-            color: updated.color,
-            stock: updated.stock,
-            available: updated.available,
-          }).then();
+          supabase
+            .from('complements')
+            .upsert({
+              id: updated.id,
+              name: updated.name,
+              category: updated.category,
+              price: updated.price,
+              cost_price: updated.costPrice,
+              color: updated.color,
+              stock: updated.stock,
+              available: updated.available,
+            })
+            .then();
         }
         return updated;
       })
@@ -309,12 +367,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addComplement = (complement: Complement) => {
     setComplements((prev) => [...prev, complement]);
-    if (supabase) supabase.from('complements').upsert(complement).then();
+    if (supabase) {
+      supabase.from('complements').upsert(complement).then();
+    }
   };
 
   const deleteComplement = (id: string) => {
     setComplements((prev) => prev.filter((c) => c.id !== id));
-    if (supabase) supabase.from('complements').delete().eq('id', id).then();
+    if (supabase) {
+      supabase.from('complements').delete().eq('id', id).then();
+    }
   };
 
   const updateCombo = (id: string, partial: Partial<ComboItem>) => {
@@ -322,6 +384,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       prev.map((cb) => {
         if (cb.id !== id) return cb;
         const updated = { ...cb, ...partial };
+        if (partial.stock !== undefined) {
+          updated.stock = Math.max(0, partial.stock);
+          if (updated.stock === 0) updated.available = false;
+        }
         return updated;
       })
     );
@@ -355,7 +421,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     };
     setTransactions((prev) => [newTx, ...prev]);
-    if (supabase) supabase.from('financial_transactions').insert(newTx).then();
+    if (supabase) {
+      supabase.from('financial_transactions').insert(newTx).then();
+    }
   };
 
   const updateTransaction = (id: string, partial: Partial<FinancialTransaction>) => {
@@ -396,6 +464,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  // Sincronizar mensagens periodicamente do Supabase se disponível
   useEffect(() => {
     if (!supabase) return;
 
@@ -425,6 +494,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => clearInterval(interval);
   }, []);
 
+  // Salvar mensagens no localStorage
   useEffect(() => {
     try {
       localStorage.setItem('acai_order_messages_v1', JSON.stringify(orderMessages));
@@ -467,6 +537,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const getOrderMessages = (orderId: string) => {
     return orderMessages.filter((m) => m.orderId === orderId);
   };
+
+  const getOrderMessagesCount = (orderId: string) => {
+    return orderMessages.filter((m) => m.orderId === orderId).length;
+  };
+
+  const totalOrderMessagesCount = orderMessages.length;
 
   const resetAllStoreData = () => {
     setStoreSettings(STORE_SETTINGS);
@@ -514,8 +590,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isTotemMode,
         setIsTotemMode,
         orderMessages,
+        totalOrderMessagesCount,
         sendOrderMessage,
         getOrderMessages,
+        getOrderMessagesCount,
         deductStockForOrder,
         resetAllStoreData,
         isCloudSynced,
