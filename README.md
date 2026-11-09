@@ -70,12 +70,18 @@ Sistema completo e moderno para lojas de açaí, combinando vitrine para cliente
    npm install
    ```
 
-3. Inicie o servidor de desenvolvimento:
+3. Configure as variáveis de ambiente no arquivo `.env`:
+   ```env
+   VITE_SUPABASE_URL=sua_url_supabase
+   VITE_SUPABASE_ANON_KEY=sua_chave_anon_supabase
+   ```
+
+4. Inicie o servidor de desenvolvimento:
    ```bash
    npm run dev
    ```
 
-4. Para gerar a versão de produção:
+5. Para gerar a versão de produção:
    ```bash
    npm run build
    ```
