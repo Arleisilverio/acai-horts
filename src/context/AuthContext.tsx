@@ -7,7 +7,7 @@ interface AuthContextType {
   usersList: UserProfile[];
   isAuthenticated: boolean;
   isSuperAdmin: boolean;
-  isStoreStaff: boolean;
+  isStoreStaff: boolean; // super_admin, lojista ou gerente
   canEditStore: boolean;
   login: (email: string, passOrCode?: string) => Promise<{ success: boolean; message: string }>;
   registerCustomer: (data: {
@@ -17,6 +17,9 @@ interface AuthContextType {
     address?: { street: string; number: string; neighborhood: string; reference?: string };
   }) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
+  updateCurrentUserAvatar: (avatarUrl: string) => Promise<void>;
+  updateCurrentUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+  // Gestão de Usuários (Acesso exclusivo do Super Admin Arlei)
   addUserByAdmin: (user: Omit<UserProfile, 'id' | 'createdAt'>) => void;
   updateUserRole: (userId: string, role: UserRole, active: boolean) => void;
   removeUser: (userId: string) => void;
@@ -49,16 +52,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  // Current session
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('acai_auth_user_v3');
       if (saved) return JSON.parse(saved);
+      // Padrão: inicializar logado como Super Admin Arlei para facilidade imediata de gestão
       return INITIAL_USERS[0];
     } catch {
       return INITIAL_USERS[0];
     }
   });
 
+  // Persist session and users list
   useEffect(() => {
     try {
       localStorage.setItem('acai_users_list_v3', JSON.stringify(usersList));
@@ -75,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   }, [currentUser]);
 
+  // Sync users with Supabase profiles table if available
   useEffect(() => {
     if (!supabase) return;
 
@@ -82,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data } = await supabase!.from('profiles').select('*');
         if (data && data.length > 0) {
+          // Merge remote profiles
           const merged: UserProfile[] = data.map((p: any) => ({
             id: p.id,
             name: p.full_name || p.name || 'Usuário',
@@ -99,8 +107,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 : 'cliente',
             active: p.active !== false,
             createdAt: p.created_at || new Date().toISOString(),
+            avatarUrl: p.avatar_url || undefined,
           }));
 
+          // Garante que o Super Admin Arlei esteja sempre presente
           if (!merged.some((u) => u.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase())) {
             merged.unshift(INITIAL_USERS[0]);
           }
@@ -121,6 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<{ success: boolean; message: string }> => {
     const cleanEmail = email.trim().toLowerCase();
 
+    // Se for o email do criador Arlei, loga direto como Super Admin
     if (cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
       const superAdminUser: UserProfile = {
         id: 'usr_super_admin',
@@ -135,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, message: 'Bem-vindo, Arlei! Painel de Controle Master liberado.' };
     }
 
+    // Busca na lista local de usuários autorizados
     const found = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
     if (!found) {
       return {
@@ -167,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const existing = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
 
     if (existing) {
+      // Atualiza dados e loga
       const updated: UserProfile = {
         ...existing,
         name: data.name.trim(),
@@ -192,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUsersList((prev) => [newCustomer, ...prev]);
     setCurrentUser(newCustomer);
 
+    // Salva no Supabase se disponível
     if (supabase) {
       supabase
         .from('profiles')
@@ -214,6 +228,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setCurrentUser(null);
+  };
+
+  const updateCurrentUserAvatar = async (avatarUrl: string) => {
+    if (!currentUser) return;
+    const updated: UserProfile = { ...currentUser, avatarUrl };
+    setCurrentUser(updated);
+    setUsersList((prev) => prev.map((u) => (u.id === currentUser.id ? updated : u)));
+
+    if (supabase) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ avatar_url: avatarUrl })
+          .eq('id', currentUser.id);
+      } catch (e) {
+        console.warn('Erro ao salvar avatar no Supabase:', e);
+      }
+    }
+  };
+
+  const updateCurrentUserProfile = async (data: Partial<UserProfile>) => {
+    if (!currentUser) return;
+    const updated: UserProfile = { ...currentUser, ...data };
+    setCurrentUser(updated);
+    setUsersList((prev) => prev.map((u) => (u.id === currentUser.id ? updated : u)));
+
+    if (supabase) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            full_name: updated.name,
+            phone: updated.phone,
+            avatar_url: updated.avatarUrl,
+          })
+          .eq('id', currentUser.id);
+      } catch (e) {
+        console.warn('Erro ao atualizar perfil no Supabase:', e);
+      }
+    }
   };
 
   const addUserByAdmin = (user: Omit<UserProfile, 'id' | 'createdAt'>) => {
@@ -243,6 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUsersList((prev) =>
       prev.map((u) => {
         if (u.id !== userId) return u;
+        // Não permite rebaixar o Super Admin Arlei
         if (u.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
           return { ...u, role: 'super_admin', active: true };
         }
@@ -305,6 +360,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         registerCustomer,
         logout,
+        updateCurrentUserAvatar,
+        updateCurrentUserProfile,
         addUserByAdmin,
         updateUserRole,
         removeUser,
