@@ -53,7 +53,8 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
   const [selectedSizeId, setSelectedSizeId] = useState<string>(
     cupSizes[1]?.id || cupSizes[0]?.id || '500ml'
   );
-  const [selectedBaseId, setSelectedBaseId] = useState<string>(
+  // Base fixa: o açaí tradicional (primeira base cadastrada). Sem seleção no totem.
+  const [selectedBaseId] = useState<string>(
     baseOptions[0]?.id || 'tradicional'
   );
   const [selectedComplementIds, setSelectedComplementIds] = useState<string[]>([
@@ -87,10 +88,18 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
     itemPrice: unitPrice,
   };
 
+  // Último item adicionado (dispara a animação da frutinha caindo no copo, igual à página principal)
+  const [lastAddedItem, setLastAddedItem] = useState<Complement | null>(null);
+
   const toggleComplement = (id: string) => {
-    setSelectedComplementIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+    const comp = complements.find((c) => c.id === id);
+    if (selectedComplementIds.includes(id)) {
+      setSelectedComplementIds((prev) => prev.filter((item) => item !== id));
+    } else {
+      if (comp && (!comp.available || comp.stock <= 0)) return;
+      setSelectedComplementIds((prev) => [...prev, id]);
+      if (comp) setLastAddedItem(comp);
+    }
   };
 
   // Timer para reiniciar o totem após pedido confirmado
@@ -249,6 +258,7 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
                 complements={selectedComplements}
                 onRemoveComplement={(id) => toggleComplement(id)}
                 onClearAll={() => setSelectedComplementIds([])}
+                lastAddedComplement={lastAddedItem}
               />
             )}
           </div>
@@ -259,7 +269,7 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
               R$ {unitPrice.toFixed(2).replace('.', ',')}
             </div>
             <div className="text-[11px] text-zinc-500">
-              {selectedSize.volume} · {selectedBase.name} · {selectedComplements.length} adicionais
+              {selectedSize.volume} · {selectedComplements.length} adicionais
             </div>
           </div>
         </div>
@@ -298,43 +308,11 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
             </div>
           </div>
 
-          {/* PASSO 2: ESCOLHA A BASE */}
-          <div className="space-y-2.5">
-            <label className="text-sm font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-amber-400 text-black flex items-center justify-center text-xs">
-                2
-              </span>
-              <span>Escolha a Base de Açaí:</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {baseOptions.map((base) => {
-                const isSelected = base.id === selectedBaseId;
-                return (
-                  <button
-                    key={base.id}
-                    type="button"
-                    onClick={() => setSelectedBaseId(base.id)}
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-purple-600/30 border-purple-500 ring-2 ring-purple-500/50'
-                        : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'
-                    }`}
-                  >
-                    <span className="text-xs font-bold text-white block">{base.name}</span>
-                    <span className="text-[11px] text-zinc-400">
-                      {base.extraPrice && base.extraPrice > 0 ? `+ R$ ${base.extraPrice.toFixed(2)}` : 'Incluso'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* PASSO 3: COMPLEMENTOS COM CATEGORIAS EM ABAS TOUCH */}
+          {/* PASSO 2: COMPLEMENTOS COM CATEGORIAS EM ABAS TOUCH */}
           <div className="space-y-3">
             <label className="text-sm font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-amber-400 text-black flex items-center justify-center text-xs">
-                3
+                2
               </span>
               <span>Toque nos Adicionais para Colocar no Copo:</span>
             </label>
