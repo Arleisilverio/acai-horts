@@ -36,8 +36,7 @@ const CATEGORIES: { id: ComplementCategory; label: string; icon: string }[] = [
   { id: 'frutas', label: 'Frutas Frescas', icon: '🍓' },
   { id: 'cremes', label: 'Cremes & Mousses', icon: '🥛' },
   { id: 'crocantes', label: 'Crocantes & Grãos', icon: '🥜' },
-  { id: 'caldas', label: 'Caldas Artesanais', icon: '🍯' },
-  { id: 'especiais', label: 'Chocolates & Especiais', icon: '🍫' },
+  { id: 'coberturas', label: 'Caldas & Coberturas', icon: '🍯' },
 ];
 
 export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderCompleted }) => {
@@ -76,8 +75,8 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
   const selectedBase = baseOptions.find((b) => b.id === selectedBaseId) || baseOptions[0];
   const selectedComplements = complements.filter((c) => selectedComplementIds.includes(c.id));
 
-  const complementsPrice = selectedComplements.reduce((sum, c) => sum + c.price, 0);
-  const unitPrice = (selectedSize?.price || 0) + (selectedBase?.price || 0) + complementsPrice;
+  const complementsPrice = selectedComplements.reduce((sum, c) => sum + (c.price || 0), 0);
+  const unitPrice = (selectedSize?.basePrice || 0) + (selectedBase?.extraPrice || 0) + complementsPrice;
 
   const currentItem: CustomAcaiItem = {
     id: `totem_item_${Date.now()}`,
@@ -243,11 +242,15 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
           </div>
 
           <div className="my-6 scale-110">
-            <InteractiveCup
-              size={selectedSize}
-              base={selectedBase}
-              complements={selectedComplements}
-            />
+            {selectedSize && selectedBase && (
+              <InteractiveCup
+                size={selectedSize}
+                base={selectedBase}
+                complements={selectedComplements}
+                onRemoveComplement={(id) => toggleComplement(id)}
+                onClearAll={() => setSelectedComplementIds([])}
+              />
+            )}
           </div>
 
           <div className="w-full bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 text-center space-y-1">
@@ -287,7 +290,7 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
                   >
                     <span className="text-xl font-black text-white">{size.volume}</span>
                     <span className="text-sm font-extrabold text-purple-300">
-                      R$ {size.price.toFixed(2).replace('.', ',')}
+                      R$ {size.basePrice.toFixed(2).replace('.', ',')}
                     </span>
                   </button>
                 );
@@ -319,7 +322,7 @@ export const TotemView: React.FC<TotemViewProps> = ({ onExitTotem, onOrderComple
                   >
                     <span className="text-xs font-bold text-white block">{base.name}</span>
                     <span className="text-[11px] text-zinc-400">
-                      {base.price > 0 ? `+ R$ ${base.price.toFixed(2)}` : 'Incluso'}
+                      {base.extraPrice && base.extraPrice > 0 ? `+ R$ ${base.extraPrice.toFixed(2)}` : 'Incluso'}
                     </span>
                   </button>
                 );
