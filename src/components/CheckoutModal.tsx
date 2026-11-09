@@ -37,7 +37,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   items,
   onOrderCompleted,
 }) => {
-  const { neighborhoods, storeSettings, deductStockForOrder, posMode, addTransaction } = useStore();
+  const {
+    neighborhoods,
+    storeSettings,
+    deductStockForOrder,
+    posMode,
+    addTransaction,
+    getOrderMessagesCount,
+  } = useStore();
   const { currentUser, isStoreStaff } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -370,10 +377,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowChatModal(true)}
-                  className="flex-1 py-3 px-5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-950/40"
+                  className="flex-1 py-3 px-5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-purple-950/40 relative"
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>💬 Chat com a Loja</span>
+                  {confirmedOrder && getOrderMessagesCount(confirmedOrder.id) > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-500 text-white animate-pulse">
+                      {getOrderMessagesCount(confirmedOrder.id)}
+                    </span>
+                  )}
                 </button>
 
                 {confirmedOrder.customer.orderType === 'balcao' && (
